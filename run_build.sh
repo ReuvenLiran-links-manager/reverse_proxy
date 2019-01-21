@@ -1,0 +1,1 @@
+go build -o bin/reverse-proxy && ./bin/reverse-proxy

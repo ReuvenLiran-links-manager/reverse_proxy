@@ -22,7 +22,7 @@ var myBase string
 var prevBase string
 var path string
 
-const FALLBACK_PORT = "80"
+const FALLBACK_PORT = "9000"
 
 type myTransport struct {
 	// Uncomment this if you want to capture the transport
