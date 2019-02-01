@@ -21,6 +21,7 @@ import (
 var myBase string
 var prevBase string
 var path string
+var redisClient Redis
 
 const FALLBACK_PORT = "9000"
 
@@ -130,29 +131,17 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	myURL := myBase
+	myURL := redisClient.GetHost()
 
 	// Update the headers to allow for SSL redirection
-	if myBase != prevBase {
+	if myURL != redisClient.GetPrevHost() {
 		req.URL.Path = path
-		prevBase = myBase
+		redisClient.SetPrevHost(myURL)
 	} else {
 		req.URL.Path, _ = url.PathUnescape(req.URL.Path[1:len(req.URL.Path)])
 	}
 
 	serveReverseProxy(myURL, res, req)
-}
-
-/*
-	Entry
-*/
-
-func toJSON(m interface{}) string {
-	js, err := json.Marshal(m)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return strings.Replace(string(js), ",", ", ", -1)
 }
 
 func Rewriter(h http.Handler) http.Handler {
@@ -165,6 +154,10 @@ func Rewriter(h http.Handler) http.Handler {
 			a, _ := url.PathUnescape(pe)
 			myURL, _ := url.Parse(a)
 			myBase = myURL.Scheme + "://" + myURL.Host
+
+			redisClient.SetHost(myBase)
+			redisClient.SetPrevHost("")
+
 			path = myURL.Path
 			prevBase = ""
 			r.URL.Path = "/" + pe
@@ -178,8 +171,45 @@ func Rewriter(h http.Handler) http.Handler {
 	})
 }
 
+// func ExampleNewClient() {
+// 	client := redis.NewClient(&redis.Options{
+// 		Addr:     "localhost:6379",
+// 		Password: "", // no password set
+// 		DB:       0,  // use default DB
+// 	})
+
+// 	pong, err := client.Ping().Result()
+// 	log.Printf(pong, err)
+// 	// Output: PONG <nil>
+// 	err = client.Set("key", "value", 0).Err()
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	val, err := client.Get("key").Result()
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	log.Printf("key", val)
+
+// 	val2, err := client.Get("key2").Result()
+// 	if err == redis.Nil {
+// 		log.Printf("key2 does not exist")
+// 	} else if err != nil {
+// 		panic(err)
+// 	} else {
+// 		log.Printf("key2", val2)
+// 	}
+// 	// Output: key value
+// 	// key2 does not exist
+// }
+
 func main() {
 	logSetup()
+	redisClient.ConnectToRedis()
+	// redisClient.SetHost("ssssssss")
+	// log.Printf(redisClient.GetHost())
+
 	r := mux.NewRouter()
 	r.HandleFunc("/{url}", handleRequestAndRedirect)
 	log.Fatal(http.ListenAndServe(getListenAddress(), Rewriter(r)))
