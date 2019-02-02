@@ -38,8 +38,8 @@ func (t *myTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	// The httputil package provides a DumpResponse() func that will copy the
 	// contents of the body into a []byte and return it. It also wraps it in an
 	// ioutil.NopCloser and sets up the response to be passed on to the client.
-	if response == nil {
-		return nil, nil
+	if err != nil {
+		panic(err)
 	}
 
 	if response.StatusCode == 404 {
