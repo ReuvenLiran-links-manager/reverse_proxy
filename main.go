@@ -1,9 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -21,9 +18,8 @@ import (
 var myBase string
 var prevBase string
 var path string
-var redisClient Redis
 
-const FALLBACK_PORT = "9000"
+const fallback_port = "9000"
 
 type myTransport struct {
 	// Uncomment this if you want to capture the transport
@@ -40,6 +36,9 @@ func (t *myTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	// ioutil.NopCloser and sets up the response to be passed on to the client.
 	if err != nil {
 		panic(err)
+	}
+	if response == nil {
+		return response, err
 	}
 
 	if response.StatusCode == 404 {
@@ -77,7 +76,7 @@ func getEnv(key, fallback string) string {
 
 // Get the port to listen on
 func getListenAddress() string {
-	port := getEnv("PORT", FALLBACK_PORT)
+	port := getEnv("PORT", fallback_port)
 	return ":" + port
 }
 
@@ -113,27 +112,12 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 	proxy.ServeHTTP(res, req)
 }
 
-// Get a json decoder for a given requests body
-func requestBodyDecoder(request *http.Request) *json.Decoder {
-	// Read body to buffer
-	body, err := ioutil.ReadAll(request.Body)
-	if err != nil {
-		log.Printf("Error reading body: %v", err)
-		panic(err)
-	}
-
-	// Because go lang is a pain in the ass if you read the body then any susequent calls
-	// are unable to read the body again....
-	request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-
-	return json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(body)))
-}
-
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+	redisClient := GetRedisClient()
+
 	myURL := redisClient.GetHost()
 
-	// Update the headers to allow for SSL redirection
 	if myURL != redisClient.GetPrevHost() {
 		req.URL.Path = path
 		redisClient.SetPrevHost(myURL)
@@ -144,17 +128,18 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	serveReverseProxy(myURL, res, req)
 }
 
-func Rewriter(h http.Handler) http.Handler {
+func rewriter(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		//Simple URL rewriter. Rewrite if it's started with API path
 		pathReq := r.RequestURI
 		if strings.HasPrefix(pathReq, "/new") {
-			//Use url.QueryEscape for pre go1.8
+
 			pe := strings.TrimLeft(pathReq, "/new")
 			a, _ := url.PathUnescape(pe)
 			myURL, _ := url.Parse(a)
 			myBase = myURL.Scheme + "://" + myURL.Host
 
+			redisClient := GetRedisClient()
 			redisClient.SetHost(myBase)
 			redisClient.SetPrevHost("")
 
@@ -171,46 +156,9 @@ func Rewriter(h http.Handler) http.Handler {
 	})
 }
 
-// func ExampleNewClient() {
-// 	client := redis.NewClient(&redis.Options{
-// 		Addr:     "localhost:6379",
-// 		Password: "", // no password set
-// 		DB:       0,  // use default DB
-// 	})
-
-// 	pong, err := client.Ping().Result()
-// 	log.Printf(pong, err)
-// 	// Output: PONG <nil>
-// 	err = client.Set("key", "value", 0).Err()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	val, err := client.Get("key").Result()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	log.Printf("key", val)
-
-// 	val2, err := client.Get("key2").Result()
-// 	if err == redis.Nil {
-// 		log.Printf("key2 does not exist")
-// 	} else if err != nil {
-// 		panic(err)
-// 	} else {
-// 		log.Printf("key2", val2)
-// 	}
-// 	// Output: key value
-// 	// key2 does not exist
-// }
-
 func main() {
 	logSetup()
-	redisClient.ConnectToRedis()
-	// redisClient.SetHost("ssssssss")
-	// log.Printf(redisClient.GetHost())
-
 	r := mux.NewRouter()
 	r.HandleFunc("/{url}", handleRequestAndRedirect)
-	log.Fatal(http.ListenAndServe(getListenAddress(), Rewriter(r)))
+	log.Fatal(http.ListenAndServe(getListenAddress(), rewriter(r)))
 }

@@ -2,41 +2,59 @@ package main
 
 import (
 	"log"
+	"sync"
+	"time"
 
 	"github.com/go-redis/redis"
 )
 
 const host = "host"
 const prevHost = "prev_host"
-const fallbackAddress = "localhost:6379"
+const redisFallbackAddress = "localhost:6379"
 
-// Redis struct
-type Redis struct {
-	client redis.Client
+type RedisClient struct {
+	*redis.Client
 }
 
-// ConnectToRedis - connect to redis
-func (r *Redis) ConnectToRedis() {
-	client := *redis.NewClient(&redis.Options{
-		Addr:     getEnv("REDIS_ADDRESS", fallbackAddress),
-		Password: "", // no password set
-		DB:       0,  // use default DB
+var redisClient *RedisClient
+var once sync.Once
+
+const key = "drivers"
+
+// GetRedisClient get Redis client
+func GetRedisClient() *RedisClient {
+	once.Do(func() {
+		redisAddress := getEnv("REDIS_ADDRESS", redisFallbackAddress)
+		opt, _ := redis.ParseURL(redisAddress)
+
+		client := redis.NewClient(&redis.Options{
+			Addr:            opt.Addr,
+			MaxRetries:      3,
+			MaxRetryBackoff: 1 * time.Minute,
+			MinRetryBackoff: 5 * time.Second,
+			// IdleTimeout: 5 * time.Minute,
+			Password: "",     // no password set
+			DB:       opt.DB, // use default DB
+		})
+
+		redisClient = &RedisClient{client}
+		pong, _ := redisClient.Ping().Result()
+		if pong != "" {
+			log.Println("Connected to redis")
+		}
 	})
 
-	r.client = client
-
-	pong, err := r.client.Ping().Result()
-	log.Printf(pong, err)
+	return redisClient
 }
 
-func (r *Redis) set(key string, value string) {
-	err := r.client.Set(key, value, 0).Err()
+func (c *RedisClient) set(key string, value string) {
+	err := c.Set(key, value, 0).Err()
 	if err != nil {
 		panic(err)
 	}
 }
-func (r *Redis) get(key string) string {
-	val, err := r.client.Get(key).Result()
+func (c *RedisClient) get(key string) string {
+	val, err := c.Get(key).Result()
 	if err != nil {
 		panic(err)
 	}
@@ -44,21 +62,21 @@ func (r *Redis) get(key string) string {
 }
 
 // SetHost - Set Host
-func (r *Redis) SetHost(value string) {
-	r.set(host, value)
+func (c *RedisClient) SetHost(value string) {
+	c.set(host, value)
 }
 
 // GetHost - Get Host
-func (r *Redis) GetHost() string {
-	return r.get(host)
+func (c *RedisClient) GetHost() string {
+	return c.get(host)
 }
 
 // SetPrevHost - Set Previes Host
-func (r *Redis) SetPrevHost(value string) {
-	r.set(prevHost, value)
+func (c *RedisClient) SetPrevHost(value string) {
+	c.set(prevHost, value)
 }
 
 // GetPrevHost - Get Previes Host
-func (r *Redis) GetPrevHost() string {
-	return r.get(prevHost)
+func (c *RedisClient) GetPrevHost() string {
+	return c.get(prevHost)
 }
