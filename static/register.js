@@ -1,28 +1,4 @@
 const SERVICE_WORKER = "http://localhost:9000/service-worker.js";
-
-// (function() {
-//   if ("serviceWorker" in navigator) {
-//     window.addEventListener("load", function() {
-//       navigator.serviceWorker
-//         .register("http://localhost:9000/service-worker.js")
-//         .then(
-//           function(registration) {
-//             debugger
-//             // Registration was successful
-//             console.log(
-//               "ServiceWorker registration successful with scope: ",
-//               registration.scope
-//             );
-//           },
-//           function(err) {
-//             // registration failed :(
-//             console.log("ServiceWorker registration failed: ", err);
-//           }
-//         );
-//     });
-//   }
-// })();
-
 // This optional code is used to register a service worker.
 // register() is not called by default.
 
@@ -46,10 +22,7 @@ const isLocalhost = Boolean(
 );
 
 function register(config) {
-  debugger;
   window.addEventListener("load", () => {
-    // const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
-    // debugger
     const swUrl = SERVICE_WORKER;
 
     if (isLocalhost) {

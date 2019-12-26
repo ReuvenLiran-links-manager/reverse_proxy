@@ -2,46 +2,53 @@ self.addEventListener("fetch", event => {
   event.respondWith(customHeaderRequestFetch(event));
 });
 
+let base = "";
+const CURRENT_ORIGIN = self.location.origin;
+const getUrl = url => `${CURRENT_ORIGIN}/${encodeURIComponent(url)}`;
+
+const ignoreFiles = [
+  "html.html",
+  "register.js",
+  "service-worker.js"
+].map(url => `${CURRENT_ORIGIN}/${url}`);
+const ignoreFilesSet = new Set(ignoreFiles);
+
 function customHeaderRequestFetch(event) {
   try {
-    // debugger
     const { request } = event;
     const { url } = request;
-    // decide for yourself which values you provide to mode and credentials
+    let newUrl = decodeURIComponent(url);
+    let newRequest;
 
-    if (
-      url === "http://localhost:9000/html.html" ||
-      url === "http://localhost:9000/register.js" ||
-      url === "http://localhost:9000/service-worker.js" ||
-      event.request.mode === "navigate"
-    ) {
-      console.log("REQUEST", request);
+    if (ignoreFilesSet.has(url)) {
       return fetch(request);
+
+    } else if (newUrl.includes(CURRENT_ORIGIN)) {
+      ([_, newUrl] = newUrl.split(getUrl("")));
+      try {
+        ({ origin: base } = new URL(decodeURIComponent(newUrl)));
+      } catch (e) {
+        newUrl = `${base}/${newUrl}`;
+      }
+
+    } else {
+      try {
+        new URL(newUrl);
+      } catch (e) {
+        console.error(new Error('Error while trying to parse url ' + url))
+      }
     }
 
-    const base = encodeURIComponent("https://www.google.com");
-    let newUrl = url;
-    console.log("9000 ORIGINAL", newUrl);
+    newUrl = getUrl(newUrl);
 
-    if (newUrl === "http://localhost:9000/https%3A%2F%2Fwww.google.com") {
-      newUrl = "";
-    } else if (newUrl.includes("http://localhost:9000")) {
-      newUrl = newUrl.split("http://localhost:9000")[1];
+    if (request.mode === "navigate") {
+      newRequest = new Request(newUrl);
+    } else {
+      newRequest = new Request(newUrl, request);
     }
-
-    try {
-      new URL(newUrl);
-      newUrl = `http://localhost:9000/${encodeURIComponent(newUrl)}`;
-    } catch (e) {
-      newUrl = `http://localhost:9000/${base}${encodeURIComponent(newUrl)}`;
-    }
-    const newRequest = new Request(newUrl, request);
-    console.log("9000 MODIFIED", newRequest.url);
-
+   
     return fetch(newRequest);
-    // return fetch(event.request);
-  } 
-  catch (e) {
+  } catch (e) {
     console.error(e);
   }
 }
