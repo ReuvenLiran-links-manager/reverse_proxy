@@ -141,16 +141,16 @@ func main() {
 	logSetup()
 	router := mux.NewRouter().UseEncodedPath()
 
-	router.PathPrefix("/service-worker.js").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.PathPrefix("/proxy-service-worker.js").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./static/service-worker1.js")
 	})
-	router.PathPrefix("/html.html").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.PathPrefix("/static/proxy-init.html").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./static/html.html")
 	})
-	router.PathPrefix("/register.js").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.PathPrefix("/static/proxy-register.js").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./static/register.js")
 	})
-	router.HandleFunc("/{url}", handleRequestAndRedirect)
+	router.HandleFunc("/proxy/{url}", handleRequestAndRedirect)
 	log.Fatal(http.ListenAndServe(getListenAddress(), router))
 }
 

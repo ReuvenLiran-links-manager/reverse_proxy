@@ -1,4 +1,7 @@
-const SERVICE_WORKER = "http://localhost:9000/service-worker.js";
+const DOMAIN = 'http://localhost:9000/';
+const FILE_NAME = 'proxy-service-worker.js';
+const SERVICE_WORKER = DOMAIN + FILE_NAME;
+
 // This optional code is used to register a service worker.
 // register() is not called by default.
 
@@ -32,6 +35,11 @@ function register(config) {
       // Add some additional logging to localhost, pointing developers to the
       // service worker/PWA documentation.
       navigator.serviceWorker.ready.then(() => {
+        const message = {
+          event: 'service_worker_ready',
+          message: 'Success'
+        }
+        window.parent.postMessage(message, "http://localhost:3000")
         console.log(
           "This web app is being served cache-first by a service " +
             "worker. To learn more, visit https://bit.ly/CRA-PWA"
@@ -48,6 +56,8 @@ function registerValidSW(swUrl, config) {
   navigator.serviceWorker
     .register(swUrl)
     .then(registration => {
+      console.log('scope ', registration.scope);
+  
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
         if (installingWorker == null) {
