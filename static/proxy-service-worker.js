@@ -3,21 +3,25 @@ self.addEventListener("fetch", event => {
 });
 
 let base = "";
-const {
-  location: { origin: CURRENT_ORIGIN }
-} = self;
-const getUrl = url => `${CURRENT_ORIGIN}/proxy/${encodeURIComponent(url)}`;
-
-const ignoreFiles = ["static/proxy-init.html", "/static/proxy-register.js", "/proxy-service-worker.js"].map(
-  url => `${CURRENT_ORIGIN}/${url}`
+const [CURRENT_ORIGIN_WITH_TAB, _fileName] = self.location.href.split(
+  "proxy-service-worker.js"
 );
+const [CURRENT_ORIGIN] = CURRENT_ORIGIN_WITH_TAB.split("tab");
+const getUrl = url =>
+  `${CURRENT_ORIGIN_WITH_TAB}proxy/${encodeURIComponent(url)}`;
+
+const ignoreFiles = [
+  `${CURRENT_ORIGIN_WITH_TAB}static/proxy-init.html`,
+  `${CURRENT_ORIGIN}static/proxy-register.js`,
+  `${CURRENT_ORIGIN_WITH_TAB}proxy-service-worker.js`
+];
 const ignoreFilesSet = new Set(ignoreFiles);
 
 function customHeaderRequestFetch(event) {
   try {
     const { request } = event;
     const { url } = request;
-    
+
     debugger;
     if (url.includes("clearProxyBase")) {
       base = "";
@@ -30,13 +34,16 @@ function customHeaderRequestFetch(event) {
 
     if (ignoreFilesSet.has(url)) {
       return fetch(request);
-    } else if (newUrl.includes(CURRENT_ORIGIN)) {
-      [_, newUrl] = newUrl.split(`${CURRENT_ORIGIN}/`);
+    } else if (newUrl.startsWith(`${CURRENT_ORIGIN_WITH_TAB}`)) {
+      [_, newUrl] = newUrl.split(`${CURRENT_ORIGIN_WITH_TAB}`);
       try {
         ({ origin: base } = new URL(decodeURIComponent(newUrl)));
       } catch (e) {
         newUrl = `${base}/${newUrl}`;
       }
+    } else if (newUrl.startsWith(`${CURRENT_ORIGIN}`)) {
+      [_, newUrl] = newUrl.split(`${CURRENT_ORIGIN}`);
+      newUrl = `${base}/${newUrl}`;
     } else {
       try {
         new URL(newUrl);

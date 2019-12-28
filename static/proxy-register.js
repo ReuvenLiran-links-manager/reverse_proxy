@@ -1,6 +1,8 @@
-const DOMAIN = 'http://localhost:9000/';
-const FILE_NAME = 'proxy-service-worker.js';
-const SERVICE_WORKER = DOMAIN + FILE_NAME;
+const SERVICE_WORKER_FILE_NAME = 'proxy-service-worker.js';
+const [CURRENT_ORIGIN_WITH_TAB, _] = window.location.href.split('static/proxy-init.html');
+let [_origin, TAB] = CURRENT_ORIGIN_WITH_TAB.split(window.location.origin + '/');
+TAB = TAB.slice(0, -1);
+const SERVICE_WORKER = CURRENT_ORIGIN_WITH_TAB + SERVICE_WORKER_FILE_NAME;
 
 // This optional code is used to register a service worker.
 // register() is not called by default.
@@ -37,8 +39,10 @@ function register(config) {
       navigator.serviceWorker.ready.then(() => {
         const message = {
           event: 'service_worker_ready',
-          message: 'Success'
+          tab: TAB,
+          // message: 'Success'
         }
+        debugger
         window.parent.postMessage(message, "http://localhost:3000")
         console.log(
           "This web app is being served cache-first by a service " +
