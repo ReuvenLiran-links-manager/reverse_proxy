@@ -1,0 +1,45 @@
+{
+	"version": "2.0.0",
+  "command": "go",
+  "type": "shell",
+  "presentation": {
+    "reveal": "always",
+    "panel": "new"
+  },
+  "options": {
+    "cwd": "${workspaceRoot}/"
+  },
+  "tasks": [
+		{
+      "type":"shell",
+      "label": "test",
+      "command": "gotest",
+      "args": ["-v"],
+      "options": {
+        "cwd": "${workspaceRoot}/"
+      },
+		},
+		{
+      "type":"shell",
+      "label": "build",
+      "command": "go",
+      "args": ["build", "-v", "-o", "bin/reverse-proxy"],
+      "options": {
+        "cwd": "${workspaceRoot}/"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+    },
+    {
+      "type":"shell",
+      "label": "start",
+      "command": "./bin/reverse-proxy",
+      "options": {
+        "cwd": "${workspaceRoot}/"
+      },
+      "dependsOn":["build"]
+    }
+	]
+}
